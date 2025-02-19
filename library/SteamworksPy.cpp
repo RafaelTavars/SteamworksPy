@@ -804,14 +804,8 @@ public:
     void SetLobbyEnterCallback(LobbyEnterCallback_t callback)     { _pyLobbyEnterCallback = callback; }
     void SetGameLobbyJoinRequestedCallback(GameLobbyJoinRequestedCallback_t callback) { _pyGameLobbyJoinRequestedCallback = callback; }
 
-    // API Methods (match SDK signatures as closely as possible)
-    void CreateLobby(ELobbyType eLobbyType, int cMaxMembers) {
-        if (!SteamMatchmaking()) return;
-        SteamAPICall_t createLobbyCall = SteamMatchmaking()->CreateLobby(eLobbyType, cMaxMembers);
-        _lobbyCreatedCallback.Set(createLobbyCall, this, &Lobby::OnLobbyCreated);
-    }
 
-    SW_PY void CreateLobby(int lobbyType, int cMaxMembers) {
+    void CreateLobby(int lobbyType, int cMaxMembers) {
     if (SteamMatchmaking() == NULL) {
         return;
     }
@@ -826,15 +820,16 @@ public:
     } else {
         eLobbyType = k_ELobbyTypeInvisible;
     }
-    SteamMatchmaking()->CreateLobby(eLobbyType, cMaxMembers);
-}
+     SteamAPICall_t createLobbyCall = SteamMatchmaking()->CreateLobby(eLobbyType, cMaxMembers);
+     _lobbyCreatedCallback.Set(createLobbyCall, this, &Lobby::OnLobbyCreated);
+    }
 
     void JoinLobby(int steamIDLobby) {
-    if (SteamMatchmaking() == NULL) {
-        return;
-    }
-    CSteamID lobbyID = CreateSteamID(steamIDLobby, 1);
-    SteamMatchmaking()->JoinLobby(lobbyID);
+        if (SteamMatchmaking() == NULL) {
+            return;
+        }
+        CSteamID lobbyID = CreateSteamID(steamIDLobby, 1);
+        SteamMatchmaking()->JoinLobby(lobbyID); // Corrected JoinLobby - removed .Set for CCallback
     }
 
     void LeaveLobby(int steamIDLobby) {
@@ -854,16 +849,16 @@ public:
     return SteamMatchmaking()->InviteUserToLobby(lobbyID, inviteeID);
     }
 
-    int GetNumLobbyMembers(int steamIDLobby) {
-            if (!SteamMatchmaking()) return 0;
-            CSteamID lobbyID = CreateSteamID(steamIDLobby, 1);
-            return SteamMatchmaking()->GetNumLobbyMembers(lobbyID);
-        }
+    int GetNumLobbyMembers(int steamIDLobby) { // Corrected signature to take CSteamID
+        if (!SteamMatchmaking()) return 0;
+        CSteamID lobbyID = CreateSteamID(steamIDLobby, 1);
+        return SteamMatchmaking()->GetNumLobbyMembers(lobbyID);
+    }
 
-    CSteamID GetLobbyMemberByIndex(int steamIDLobby, int iMember) {
-            if (!SteamMatchmaking()) return k_steamIDNil; // Return invalid ID
-            CSteamID lobbyID = CreateSteamID(steamIDLobby, 1);
-            return SteamMatchmaking()->GetLobbyMemberByIndex(lobbyID, iMember);
+    CSteamID GetLobbyMemberByIndex(int steamIDLobby, int iMember) { // Corrected signature to take CSteamID
+        if (!SteamMatchmaking()) return k_steamIDNil; // Return invalid ID
+        CSteamID lobbyID = CreateSteamID(steamIDLobby, 1);
+        return SteamMatchmaking()->GetLobbyMemberByIndex(lobbyID, iMember);
     }
 private:
     // Callback Handlers
@@ -900,11 +895,11 @@ SW_PY bool InviteUserToLobby(int steamIDLobby, int steamIDInvitee) {
 
 // Get lobby data - Match SDK more closely
 SW_PY int GetNumLobbyMembers(int steamIDLobby) {
-    return lobby.GetNumLobbyMembers(CSteamID(steamIDLobby));
+    return lobby.GetNumLobbyMembers(steamIDLobby);
 }
 
 SW_PY uint64_t GetLobbyMemberByIndex(int steamIDLobby, int iMember) {
-    return lobby.GetLobbyMemberByIndex(CSteamID(steamIDLobby), iMember).ConvertToUint64();
+    return lobby.GetLobbyMemberByIndex(steamIDLobby, iMember).ConvertToUint64();
 }
 
 // Callback setters (exported to Python)
@@ -917,7 +912,6 @@ SW_PY void Lobby_SetLobbyEnterCallback(LobbyEnterCallback_t callback) {
 SW_PY void Lobby_SetGameLobbyJoinRequestedCallback(GameLobbyJoinRequestedCallback_t callback) {
     lobby.SetGameLobbyJoinRequestedCallback(callback);
 }
-
 
 
 /////////////////////////////////////////////////

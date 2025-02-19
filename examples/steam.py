@@ -15,24 +15,16 @@ class SteamManager:
             print(f"SteamManager: Error initializing Steam: {e}")
             self.steamworks = None  # Indicate Steam initialization failure
 
-        self.lobby_id = 0
         self.friend_steam_id_to_invite = 0  # Set this externally
         self.friend_steam_id_p2p = 0  # Steam ID of friend in P2P session
         self.p2p_message_to_send = ""  # Set this before sending
         self.p2p_buffer_size = 1024
         self.p2p_buffer = (c_byte * self.p2p_buffer_size)()
 
-        # print all functions from self.steamworks
-        for attr in dir(self.steamworks):
-            if not attr.startswith("_"):
-                print(attr)
-
     def is_steam_ready(self):
         return self.steamworks is not None and self.steamworks.loaded()
 
-    def create_lobby(
-        self, lobby_type=ELobbyType.k_ELobbyTypeFriendsOnly.value, max_members=2
-    ):
+    def create_lobby(self, lobby_type=ELobbyType.k_ELobbyTypePublic, max_members=2):
         """Creates a lobby on Steam."""
         if not self.is_steam_ready():
             print("SteamManager: Steam not initialized, cannot create lobby.")
@@ -63,7 +55,6 @@ class SteamManager:
         print(f"SteamManager: Leaving Lobby: {lobby_id}...")
         self.steamworks.Matchmaking.LeaveLobby(lobby_id)
         print("SteamManager: Lobby leave requested.")
-        self.lobby_id = 0  # Reset lobby ID upon leaving
         return True
 
     def invite_friend_to_lobby(self, lobby_id, friend_steam_id):
@@ -72,6 +63,7 @@ class SteamManager:
             print("SteamManager: Steam not initialized, cannot invite friend.")
             return False
 
+        print(lobby_id)
         if lobby_id == 0:
             print(
                 "SteamManager: Error: No lobby ID available. Create or join a lobby first."
@@ -108,7 +100,7 @@ class SteamManager:
 
         message_bytes = message.encode("utf-8")
         data_size = len(message_bytes)
-        send_type = EP2PSend.k_EP2PSendUnreliableNoDelay.value
+        send_type = EP2PSend.k_EP2PSendReliableNoDelay.value
 
         print(f"SteamManager: Sending P2P message to {remote_steam_id}: '{message}'")
         success = self.steamworks.P2PNetworking.SendP2PPacket(
@@ -144,7 +136,8 @@ class SteamManager:
             sender_id_value = (
                 sender_steam_id.value
             )  # Get the value from the c_uint64 object
-            message = self.p2p_buffer.raw[:message_size_value]
+            message = bytes(self.p2p_buffer)[:message_size_value]
+            message = message.decode("utf-8")
             return message, sender_id_value
         else:
             return None, None
@@ -215,6 +208,8 @@ if __name__ == "__main__":
         )
         steam_manager.friend_steam_id_p2p = steam_manager.friend_steam_id_to_invite
 
+        steam_manager.create_p2p_session(steam_manager.friend_steam_id_p2p)
+
         while True:
             steam_manager.run_callbacks()  # Process Steam events
 
@@ -224,7 +219,11 @@ if __name__ == "__main__":
             print("3. Send P2P Message")
             print("4. Receive P2P Message")
             print("5. Leave Lobby")
-            print("6. Exit")
+            print("6. Join Lobby")
+            print("7. Run callbacks")
+            print("8. Check lobby")
+            print("9. Overlay Test")
+            print("10. Exit")
 
             choice = input("Enter your choice: ")
 
@@ -232,8 +231,9 @@ if __name__ == "__main__":
                 steam_manager.create_lobby()
                 time.sleep(1)  # Give Steam some time to process
             elif choice == "2":
+                lobby_id = steam_manager.steamworks.Matchmaking.GetCurrentLobbyId()
                 steam_manager.invite_friend_to_lobby(
-                    steam_manager.lobby_id, steam_manager.friend_steam_id_to_invite
+                    lobby_id, steam_manager.friend_steam_id_to_invite
                 )
                 time.sleep(1)
             elif choice == "3":
@@ -256,6 +256,27 @@ if __name__ == "__main__":
                 steam_manager.lobby_id = 0  # Reset local lobby id
                 time.sleep(1)
             elif choice == "6":
+                lobby_id = input("Enter the lobby ID to join: ")
+                steam_manager.join_lobby(int(lobby_id))
+                time.sleep(1)
+            elif choice == "7":
+                steam_manager.run_callbacks()
+            elif choice == "8":
+                lobby_id = steam_manager.steamworks.Matchmaking.GetCurrentLobbyId()
+                print(f"SteamManager Example: Current lobby ID: {lobby_id}")
+                num_players = steam_manager.steamworks.Matchmaking.GetNumLobbyMembers()
+                print(
+                    f"SteamManager Example: Number of players in lobby: {num_players}"
+                )
+                steam_manager.steamworks.Matchmaking._refresh_lobby_members()
+                members = steam_manager.steamworks.Matchmaking.GetLobbyMembers()
+                print(f"SteamManager Example: Lobby members: {members}")
+            elif choice == "9":
+                lobby_id = steam_manager.steamworks.Matchmaking.GetCurrentLobbyId()
+                steam_manager.steamworks.Friends.ActivateGameOverlayInviteDialog(
+                    lobby_id
+                )
+            elif choice == "10":
                 print("SteamManager Example: Exiting.")
                 break
             else:

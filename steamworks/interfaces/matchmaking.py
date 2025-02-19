@@ -18,6 +18,25 @@ class SteamMatchmaking(object):
     _LobbyEnter = None
     _GameLobbyJoinRequested = None
 
+    def _create_lobby_callback(self, result):
+        print("Lobby created callback")
+        if result.m_eResult == EResult.OK.value:
+            self.current_lobby_id = result.m_ulSteamIDLobby
+            print("Lobby created: ", self.current_lobby_id)
+            self._refresh_lobby_members()
+
+    def _lobby_enter_callback(self, result):
+        print("Lobby enter callback")
+        # print all attributes of result
+        for attr in dir(result):
+            print("obj.%s = %r" % (attr, getattr(result, attr)))
+        print("Status", result.m_EChatRoomEnterResponse)
+        if result.m_EChatRoomEnterResponse == 1:
+            self.current_lobby_id = result.m_ulSteamIDLobby
+            self._refresh_lobby_members()
+            print("Joined lobby: ", self.current_lobby_id)
+            print("Lobby members: ", self.lobby_members)
+
     def __init__(self, steam: object):
         self.steam = steam
         if not self.steam.loaded():
@@ -26,6 +45,8 @@ class SteamMatchmaking(object):
         # --- State ---
         self.current_lobby_id = 0
         self.lobby_members = []  # List of member Steam IDs (uint64)
+        self.SetLobbyCreatedCallback(self._create_lobby_callback)
+        self.SetLobbyEnterCallback(self._lobby_enter_callback)
 
     def SetLobbyCreatedCallback(self, callback: object) -> bool:
         self._LobbyCreated = SteamMatchmaking._LobbyCreated_t(callback)
@@ -42,42 +63,10 @@ class SteamMatchmaking(object):
         self.steam.Lobby_SetGameLobbyJoinRequestedCallback(self._GameLobbyJoinRequested)
         return True
 
-    def CreateLobby(
-        self, lobby_type: ELobbyType, max_members: int, callback: object = None
-    ) -> None:
-        if callback:
-            self.SetLobbyCreatedCallback(callback)
-
-        # Internal callback handler
-        def on_lobby_created_internal(lobby_created):
-            print("Lobby created callback")
-            if lobby_created.result == EResult.OK:
-                self.current_lobby_id = lobby_created.steam_id_lobby
-                self._refresh_lobby_members()  # Get initial member list
-            if self._LobbyCreated:  # Call the external callback
-                self._LobbyCreated(lobby_created)
-
-        # Register the internal callback
-        self.SetLobbyCreatedCallback(on_lobby_created_internal)
+    def CreateLobby(self, lobby_type: ELobbyType, max_members: int) -> None:
         self.steam.CreateLobby(lobby_type.value, max_members)
 
-    def JoinLobby(self, steam_lobby_id: int, callback: object = None) -> None:
-        if callback:
-            self.SetLobbyEnterCallback(callback)
-
-        # Internal callback handler
-        def on_lobby_enter_internal(lobby_enter):
-            print("Lobby enter callback")
-            if (
-                lobby_enter.chat_room_enter_response == 1
-            ):  # k_EChatRoomEnterResponseSuccess
-                self.current_lobby_id = lobby_enter.steam_id_lobby
-                self._refresh_lobby_members()  # Get member list
-            if self._LobbyEnter:  # Call the external callback
-                self._LobbyEnter(lobby_enter)
-
-        # Register the internal callback
-        self.SetLobbyEnterCallback(on_lobby_enter_internal)
+    def JoinLobby(self, steam_lobby_id: int) -> None:
         self.steam.JoinLobby(steam_lobby_id)
 
     def LeaveLobby(self, steam_lobby_id: int) -> None:
@@ -88,8 +77,8 @@ class SteamMatchmaking(object):
     def InviteUserToLobby(self, steam_lobby_id: int, steam_id_invitee: int) -> bool:
         return self.steam.InviteUserToLobby(steam_lobby_id, steam_id_invitee)
 
-    def GetNumLobbyMembers(self, steam_lobby_id: int) -> int:
-        return self.steam.GetNumLobbyMembers(steam_lobby_id)
+    def GetNumLobbyMembers(self) -> int:
+        return self.steam.GetNumLobbyMembers(self.current_lobby_id)
 
     def GetLobbyMemberByIndex(self, steam_lobby_id: int, member_index: int) -> int:
         return self.steam.GetLobbyMemberByIndex(steam_lobby_id, member_index)
@@ -98,7 +87,7 @@ class SteamMatchmaking(object):
         """Internal helper to update the lobby_members list."""
         self.lobby_members = []  # Clear existing members
         if self.current_lobby_id != 0:
-            num_members = self.GetNumLobbyMembers(self.current_lobby_id)
+            num_members = self.GetNumLobbyMembers()
             for i in range(num_members):
                 member_id = self.GetLobbyMemberByIndex(self.current_lobby_id, i)
                 self.lobby_members.append(member_id)
