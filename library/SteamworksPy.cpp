@@ -771,7 +771,47 @@ SW_PY void TriggerVibration(uint64_t controllerHandle, uint16_t leftSpeed, uint1
 ///// MATCHMAKING
 /////////////////////////////////////////////////
 //
-SW_PY void CreateLobby(int lobbyType, int cMaxMembers) {
+// Callback typedefs (Match SDK)
+typedef void(*LobbyCreatedCallback_t)(LobbyCreated_t);
+typedef void(*LobbyEnterCallback_t)(LobbyEnter_t);
+typedef void(*GameLobbyJoinRequestedCallback_t)(GameLobbyJoinRequested_t);
+
+// Forward declarations
+class Lobby;
+SW_PY void Lobby_SetLobbyCreatedCallback(LobbyCreatedCallback_t callback);
+SW_PY void Lobby_SetLobbyEnterCallback(LobbyEnterCallback_t callback);
+SW_PY void Lobby_SetGameLobbyJoinRequestedCallback(GameLobbyJoinRequestedCallback_t callback);
+
+class Lobby {
+public:
+    // Callback function pointers (for Python)
+    LobbyCreatedCallback_t _pyLobbyCreatedCallback = nullptr;
+    LobbyEnterCallback_t _pyLobbyEnterCallback = nullptr;
+    GameLobbyJoinRequestedCallback_t _pyGameLobbyJoinRequestedCallback = nullptr;
+
+    // Steam API Callbacks and CallResults
+    CCallResult<Lobby, LobbyCreated_t> _lobbyCreatedCallback;
+    CCallback<Lobby, LobbyEnter_t> _lobbyEnterCallback;          // Use CCallback (no result)
+    CCallback<Lobby, GameLobbyJoinRequested_t> _gameLobbyJoinRequestedCallback;
+
+    Lobby() :
+        _lobbyEnterCallback(this, &Lobby::OnLobbyEnter),
+        _gameLobbyJoinRequestedCallback(this, &Lobby::OnGameLobbyJoinRequested)
+    {}
+
+    // Setters for callbacks
+    void SetLobbyCreatedCallback(LobbyCreatedCallback_t callback) { _pyLobbyCreatedCallback = callback; }
+    void SetLobbyEnterCallback(LobbyEnterCallback_t callback)     { _pyLobbyEnterCallback = callback; }
+    void SetGameLobbyJoinRequestedCallback(GameLobbyJoinRequestedCallback_t callback) { _pyGameLobbyJoinRequestedCallback = callback; }
+
+    // API Methods (match SDK signatures as closely as possible)
+    void CreateLobby(ELobbyType eLobbyType, int cMaxMembers) {
+        if (!SteamMatchmaking()) return;
+        SteamAPICall_t createLobbyCall = SteamMatchmaking()->CreateLobby(eLobbyType, cMaxMembers);
+        _lobbyCreatedCallback.Set(createLobbyCall, this, &Lobby::OnLobbyCreated);
+    }
+
+    SW_PY void CreateLobby(int lobbyType, int cMaxMembers) {
     if (SteamMatchmaking() == NULL) {
         return;
     }
@@ -789,30 +829,96 @@ SW_PY void CreateLobby(int lobbyType, int cMaxMembers) {
     SteamMatchmaking()->CreateLobby(eLobbyType, cMaxMembers);
 }
 
-SW_PY void JoinLobby(int steamIDLobby) {
+    void JoinLobby(int steamIDLobby) {
     if (SteamMatchmaking() == NULL) {
         return;
     }
     CSteamID lobbyID = CreateSteamID(steamIDLobby, 1);
     SteamMatchmaking()->JoinLobby(lobbyID);
-}
+    }
 
-SW_PY void LeaveLobby(int steamIDLobby) {
+    void LeaveLobby(int steamIDLobby) {
     if (SteamMatchmaking() == NULL) {
         return;
     }
     CSteamID lobbyID = CreateSteamID(steamIDLobby, 1);
     return SteamMatchmaking()->LeaveLobby(lobbyID);
-}
+    }
 
-SW_PY bool InviteUserToLobby(int steamIDLobby, int steamIDInvitee) {
+    bool InviteUserToLobby(int steamIDLobby, int steamIDInvitee) {
     if (SteamMatchmaking() == NULL) {
         return 0;
     }
     CSteamID lobbyID = CreateSteamID(steamIDLobby, 1);
     CSteamID inviteeID = CreateSteamID(steamIDInvitee, 1);
     return SteamMatchmaking()->InviteUserToLobby(lobbyID, inviteeID);
+    }
+
+    int GetNumLobbyMembers(int steamIDLobby) {
+            if (!SteamMatchmaking()) return 0;
+            CSteamID lobbyID = CreateSteamID(steamIDLobby, 1);
+            return SteamMatchmaking()->GetNumLobbyMembers(lobbyID);
+        }
+
+    CSteamID GetLobbyMemberByIndex(int steamIDLobby, int iMember) {
+            if (!SteamMatchmaking()) return k_steamIDNil; // Return invalid ID
+            CSteamID lobbyID = CreateSteamID(steamIDLobby, 1);
+            return SteamMatchmaking()->GetLobbyMemberByIndex(lobbyID, iMember);
+    }
+private:
+    // Callback Handlers
+    void OnLobbyCreated(LobbyCreated_t *pLobbyCreated, bool bIOFailure) {
+        if (_pyLobbyCreatedCallback) _pyLobbyCreatedCallback(*pLobbyCreated);
+    }
+
+    void OnLobbyEnter(LobbyEnter_t *pLobbyEnter) {
+        if (_pyLobbyEnterCallback) _pyLobbyEnterCallback(*pLobbyEnter);
+    }
+
+    void OnGameLobbyJoinRequested(GameLobbyJoinRequested_t *pCallback) {
+        if (_pyGameLobbyJoinRequestedCallback) _pyGameLobbyJoinRequestedCallback(*pCallback);
+    }
+};
+
+static Lobby lobby; // Global instance
+
+SW_PY void CreateLobby(int lobbyType, int cMaxMembers) {
+    lobby.CreateLobby(lobbyType, cMaxMembers);
 }
+
+SW_PY void JoinLobby(int steamIDLobby) {
+    lobby.JoinLobby(steamIDLobby);
+}
+
+SW_PY void LeaveLobby(int steamIDLobby) {
+    lobby.LeaveLobby(steamIDLobby);
+}
+
+SW_PY bool InviteUserToLobby(int steamIDLobby, int steamIDInvitee) {
+    return lobby.InviteUserToLobby(steamIDLobby, steamIDInvitee);
+}
+
+// Get lobby data - Match SDK more closely
+SW_PY int GetNumLobbyMembers(int steamIDLobby) {
+    return lobby.GetNumLobbyMembers(CSteamID(steamIDLobby));
+}
+
+SW_PY uint64_t GetLobbyMemberByIndex(int steamIDLobby, int iMember) {
+    return lobby.GetLobbyMemberByIndex(CSteamID(steamIDLobby), iMember).ConvertToUint64();
+}
+
+// Callback setters (exported to Python)
+SW_PY void Lobby_SetLobbyCreatedCallback(LobbyCreatedCallback_t callback) {
+    lobby.SetLobbyCreatedCallback(callback);
+}
+SW_PY void Lobby_SetLobbyEnterCallback(LobbyEnterCallback_t callback) {
+    lobby.SetLobbyEnterCallback(callback);
+}
+SW_PY void Lobby_SetGameLobbyJoinRequestedCallback(GameLobbyJoinRequestedCallback_t callback) {
+    lobby.SetGameLobbyJoinRequestedCallback(callback);
+}
+
+
 
 /////////////////////////////////////////////////
 ///// MUSIC /////////////////////////////////////
