@@ -289,6 +289,16 @@ SW_PY bool IsSteamRunning(void) {
     return SteamAPI_IsSteamRunning();
 }
 
+// Create a Steam ID
+CSteamID CreateSteamID(uint32 steamID, int accountType) {
+    CSteamID cSteamID;
+    if (accountType < 0 || accountType >= k_EAccountTypeMax) {
+        accountType = 1;
+    }
+    cSteamID.Set(steamID, EUniverse(k_EUniversePublic), EAccountType(accountType));
+    return cSteamID;
+}
+
 // Callbacks
 SW_PY void RunCallbacks() {
     SteamAPI_RunCallbacks();
@@ -503,10 +513,10 @@ SW_PY int GetPersonaState() {
     return SteamFriends()->GetPersonaState();
 }
 
-SW_PY const char *GetFriendPersonaName(uint64_t steamID) {
+SW_PY const char *GetFriendPersonaName(int steamID) {
     if (SteamFriends() != NULL && steamID > 0) {
         // Add 1 here to prevent error
-        CSteamID friendID(steamID);
+        CSteamID friendID = CreateSteamID(steamID, 1);
         bool isDataLoading = SteamFriends()->RequestUserInformation(friendID, true);
         if (!isDataLoading) {
             return SteamFriends()->GetFriendPersonaName(friendID);
@@ -529,19 +539,19 @@ SW_PY void ClearGameInfo() {
     SteamFriends()->ClearRichPresence();
 }
 
-SW_PY void InviteFriend(uint64_t steamID, const char *conString) {
+SW_PY void InviteFriend(int steamID, const char *conString) {
     if (SteamFriends() == NULL) {
         return;
     }
-    CSteamID friendID(steamID);
+    CSteamID friendID = CreateSteamID(steamID, 1);
     SteamFriends()->InviteUserToGame(friendID, conString);
 }
 
-SW_PY void SetPlayedWith(uint64_t steamID) {
+SW_PY void SetPlayedWith(int steamID) {
     if (SteamFriends() == NULL) {
         return;
     }
-    CSteamID friendID(steamID);
+    CSteamID friendID = CreateSteamID(steamID, 1);
     SteamFriends()->SetPlayedWith(friendID);
 }
 
@@ -555,11 +565,11 @@ SW_PY void ActivateGameOverlay(const char *name) {
     return SteamFriends()->ActivateGameOverlay(name);
 }
 
-SW_PY void ActivateGameOverlayToUser(const char *url, uint64_t steamID) {
+SW_PY void ActivateGameOverlayToUser(const char *url, int steamID) {
     if (SteamFriends() == NULL) {
         return;
     }
-    CSteamID overlayUser(IDsteamID);
+    CSteamID overlayUserID = CreateSteamID(steamID, 1);
     return SteamFriends()->ActivateGameOverlayToUser(url, overlayUserID);
 }
 
@@ -819,7 +829,7 @@ public:
             return;
         }
         CSteamID lobbyID(steamIDLobby);
-        SteamMatchmaking()->JoinLobby(_lobbyID); // Corrected JoinLobby - removed .Set for CCallback
+        SteamMatchmaking()->JoinLobby(lobbyID); // Corrected JoinLobby - removed .Set for CCallback
     }
 
     void LeaveLobby(uint64_t steamIDLobby) {
@@ -830,12 +840,12 @@ public:
     return SteamMatchmaking()->LeaveLobby(lobbyID);
     }
 
-    bool InviteUserToLobby(uint64_t steamIDLobby, uint64_t steamIDInvitee) {
+    bool InviteUserToLobby(uint64_t steamIDLobby, int steamIDInvitee) {
     if (SteamMatchmaking() == NULL) {
         return 0;
     }
     CSteamID lobbyID(steamIDLobby);
-    CSteamID inviteeID(steamIDInvitee);
+    CSteamID inviteeID = CreateSteamID(steamIDInvitee, 1);
     return SteamMatchmaking()->InviteUserToLobby(lobbyID, inviteeID);
     }
 
@@ -879,7 +889,7 @@ SW_PY void LeaveLobby(uint64_t steamIDLobby) {
     lobby.LeaveLobby(steamIDLobby);
 }
 
-SW_PY bool InviteUserToLobby(uint64_t steamIDLobby, uint64_t steamIDInvitee) {
+SW_PY bool InviteUserToLobby(uint64_t steamIDLobby, int steamIDInvitee) {
     return lobby.InviteUserToLobby(steamIDLobby, steamIDInvitee);
 }
 
@@ -1599,4 +1609,10 @@ SW_PY bool ReadP2PPacket(void *pubDest, uint32 cubDest, uint32 *pcubMsgSize, uin
     bool result = SteamNetworking()->ReadP2PPacket(pubDest, cubDest, pcubMsgSize, &remoteID);
     *psteamIDRemote = remoteID.ConvertToUint64();
     return result;
+}
+
+SW_PY uint64_t Convert32BitTo64BitSteamID(uint32_t accountID) {
+    // Construct a SteamID for an individual user.
+    CSteamID steamID(accountID, k_EUniversePublic, k_EAccountTypeIndividual);
+    return steamID.ConvertToUint64();
 }

@@ -92,14 +92,14 @@ STEAMWORKS_METHODS = {
         "restype": None,
         "argtypes": [c_void_p],
     },
-    "CreateLobby": {"restype": None, "argtypes": [int, int]},
+    "CreateLobby": {"restype": None, "argtypes": [c_uint64, c_uint64]},
     "JoinLobby": {"restype": None, "argtypes": [c_uint64]},
     "LeaveLobby": {"restype": None, "argtypes": [c_uint64]},
-    "InviteUserToLobby": {"restype": bool, "argtypes": [c_uint64, c_uint64]},
+    "InviteUserToLobby": {"restype": bool, "argtypes": [c_uint64, int]},
     "GetNumLobbyMembers": {"restype": c_uint64, "argtypes": [c_uint64]},
     "GetLobbyMemberByIndex": {
         "restype": c_uint64,
-        "argtypes": [c_uint64, int],
+        "argtypes": [c_uint64, c_uint64],
     },
     "MusicIsEnabled": {"restype": None},
     "MusicIsPlaying": {"restype": None},
@@ -231,4 +231,5 @@ STEAMWORKS_METHODS = {
         "restype": c_bool,
         "argtypes": [c_void_p, c_uint, POINTER(c_uint), POINTER(c_uint64)],
     },
+    "Convert32BitTo64BitSteamID": {"restype": c_uint64, "argtypes": [c_uint]},
 }
