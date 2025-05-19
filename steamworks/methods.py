@@ -58,7 +58,7 @@ STEAMWORKS_METHODS = {
     "ActivateGameOverlayToWebPage": {"restype": None, "argtypes": [c_char_p]},
     "ActivateGameOverlayToStore": {"restype": None, "argtypes": [c_uint32]},
     "ActivateGameOverlayInviteDialog": {"restype": None, "argtypes": [c_uint64]},
-    'SetInputActionManifestFilePath': {'restype': bool, 'argtypes': [c_char_p]},
+    "SetInputActionManifestFilePath": {"restype": bool, "argtypes": [c_char_p]},
     "ActivateActionSet": {"restype": None, "argtypes": [c_uint64, c_uint64]},
     "GetActionSetHandle": {"restype": c_uint64, "argtypes": [c_char_p]},
     "GetAnalogActionHandle": {"restype": c_uint64, "argtypes": [c_char_p]},
@@ -96,7 +96,7 @@ STEAMWORKS_METHODS = {
     "CreateLobby": {"restype": None, "argtypes": [c_uint64, c_uint64]},
     "JoinLobby": {"restype": None, "argtypes": [c_uint64]},
     "LeaveLobby": {"restype": None, "argtypes": [c_uint64]},
-    "InviteUserToLobby": {"restype": bool, "argtypes": [c_uint64, int]},
+    "InviteUserToLobby": {"restype": bool, "argtypes": [c_uint64, c_uint64]},
     "GetNumLobbyMembers": {"restype": c_uint64, "argtypes": [c_uint64]},
     "GetLobbyMemberByIndex": {
         "restype": c_uint64,
