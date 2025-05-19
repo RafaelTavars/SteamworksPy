@@ -11,7 +11,7 @@ goto setup_environment
 :setup_environment
 echo [*] Setting up environment
 if not exist "C:\Program Files\Microsoft Visual Studio\%1\BuildTools\Common7\Tools\VsDevCmd.bat" (
-    echo [!] Could not find your Visual Studio %1 installation!
+    echo [!] Could not find your Visual Studio %1 installation! Ensure that you copy the Common7 folder from your Visual Studio installation directory, then create a BuildTools folder in C:\Program Files\Microsoft Visual Studio\ and paste Common7 inside it.
     exit /B 5
 )
 call "C:\Program Files\Microsoft Visual Studio\%1\BuildTools\Common7\Tools\VsDevCmd.bat" -host_arch=amd64 -arch=amd64
