@@ -28,8 +28,9 @@ class SteamMatchmaking(object):
     def _lobby_enter_callback(self, result):
         print("Lobby enter callback")
         # print all attributes of result
-        for attr in dir(result):
-            print("obj.%s = %r" % (attr, getattr(result, attr)))
+        if (False):
+            for attr in dir(result):
+                print("obj.%s = %r" % (attr, getattr(result, attr)))
         print("Status", result.m_EChatRoomEnterResponse)
         if result.m_EChatRoomEnterResponse == 1:
             self.current_lobby_id = result.m_ulSteamIDLobby

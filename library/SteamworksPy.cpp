@@ -1607,21 +1607,21 @@ SW_PY bool CloseP2PSessionWithUser(uint64_t steamIDRemote) {
 }
 
 // Send a P2P packet to a specified user.
-SW_PY bool SendP2PPacket(uint64_t steamIDRemote, const void *pubData, uint32 cubData, int eP2PSendType) {
+SW_PY bool SendP2PPacket(uint64_t steamIDRemote, const void *pubData, uint32 cubData, int eP2PSendType, uint8 eP2PChannel) {
     if (SteamNetworking() == NULL) {
         return false;
     }
     CSteamID remoteID(steamIDRemote);
-    return SteamNetworking()->SendP2PPacket(remoteID, pubData, cubData, EP2PSend(eP2PSendType));
+    return SteamNetworking()->SendP2PPacket(remoteID, pubData, cubData, EP2PSend(eP2PSendType), eP2PChannel);
 }
 
 // Read a P2P packet from the incoming queue.
-SW_PY bool ReadP2PPacket(void *pubDest, uint32 cubDest, uint32 *pcubMsgSize, uint64_t *psteamIDRemote) {
+SW_PY bool ReadP2PPacket(void *pubDest, uint32 cubDest, uint32 *pcubMsgSize, uint64_t *psteamIDRemote, uint8 eP2PChannel) {
     if (SteamNetworking() == NULL) {
         return false;
     }
     CSteamID remoteID;
-    bool result = SteamNetworking()->ReadP2PPacket(pubDest, cubDest, pcubMsgSize, &remoteID);
+    bool result = SteamNetworking()->ReadP2PPacket(pubDest, cubDest, pcubMsgSize, &remoteID, eP2PChannel);
     *psteamIDRemote = remoteID.ConvertToUint64();
     return result;
 }
